@@ -10,7 +10,6 @@ import {
   Dimensions
 } from 'react-native';
 import {Svg} from 'expo';
-
 const {Line, Circle} = Svg;
 
 const {width, height} = Dimensions.get('window');
@@ -18,23 +17,32 @@ const {width, height} = Dimensions.get('window');
 let svgContainerHeight = height / 2;
 let svgContainerWidth = width;
 
-const HITSLOP = 5;
+const HITSLOP = 15;
+
+type Coordinate = {
+  x: number,
+  y: number
+};
+
+type LineCoordinate = {
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number
+};
 
 type State = {
   activeIndex: number,
-  initialCoordinate: {
-    x: number,
-    y: number
-  }
+  initialCoordinate: Coordinate,
+  activeCoordinate: Coordinate,
+  fixedLine: Array<LineCoordinate>
 };
 
 export default class App extends React.Component<void, State> {
   panResponder: Object;
   panAnimation: Animated.ValueXY;
   _lineComponent: ?Object;
-  _axisX: number;
-  _axisY: number;
-  _dots: Array<Object>;
+  _dots: Array<Coordinate>;
 
   constructor() {
     super(...arguments);
@@ -43,12 +51,15 @@ export default class App extends React.Component<void, State> {
       initialCoordinate: {
         x: 0,
         y: 0
-      }
+      },
+      activeCoordinate: {
+        x: 0,
+        y: 0
+      },
+      fixedLine: []
     };
 
     this.panAnimation = new Animated.ValueXY({x: 0, y: 0});
-    this._axisX = 0;
-    this._axisY = 0;
 
     this.panResponder = PanResponder.create({
       onMoveShouldSetResponderCapture: () => true,
@@ -56,22 +67,25 @@ export default class App extends React.Component<void, State> {
 
       onPanResponderGrant: e => {
         let {locationX, locationY} = e.nativeEvent;
-        this.panAnimation.setOffset({
-          x: 0,
-          y: 0
-        });
+        this.panAnimation.setOffset({x: 0, y: 0});
         this.panAnimation.setValue({x: 0, y: 0});
+
         let newActiveIndex = this._getIndex(locationX, locationY);
         let newState = {
           activeIndex: newActiveIndex
         };
+
         if (newActiveIndex > -1) {
-          let {x1, y1} = this._dots[newActiveIndex];
+          let {x, y} = this._dots[newActiveIndex];
           newState = {
             ...newState,
             initialCoordinate: {
-              x: x1,
-              y: y1
+              x,
+              y
+            },
+            activeCoordinate: {
+              x,
+              y
             }
           };
         }
@@ -79,13 +93,33 @@ export default class App extends React.Component<void, State> {
       },
       onPanResponderMove: (e, gestureState) => {
         let {dx, dy, x0, y0} = gestureState;
-        let {initialCoordinate: {x, y}} = this.state;
+        let {fixedLine, initialCoordinate, activeCoordinate} = this.state;
+        let endLineX = initialCoordinate.x + dx;
+        let endLineY = initialCoordinate.y + dy;
 
-        this._lineComponent &&
-          this._lineComponent.setNativeProps({
-            x2: (x + dx).toString(),
-            y2: (y + dy).toString()
+        let hitIndex = this._getIndex(endLineX, endLineY);
+        if (hitIndex > -1) {
+          let endDot = this._dots[hitIndex];
+          fixedLine.push({
+            startX: activeCoordinate.x,
+            startY: activeCoordinate.y,
+            endX: endDot.x,
+            endY: endDot.y
           });
+          this.setState({
+            fixedLine,
+            activeCoordinate: {
+              x: endDot.x,
+              y: endDot.y
+            }
+          });
+        } else {
+          this._lineComponent &&
+            this._lineComponent.setNativeProps({
+              x2: endLineX.toString(),
+              y2: endLineY.toString()
+            });
+        }
       },
       onPanResponderRelease: () => {
         this.setState({
@@ -93,7 +127,12 @@ export default class App extends React.Component<void, State> {
           initialCoordinate: {
             x: 0,
             y: 0
-          }
+          },
+          activeCoordinate: {
+            x: 0,
+            y: 0
+          },
+          fixedLine: []
         });
       }
     });
@@ -107,8 +146,8 @@ export default class App extends React.Component<void, State> {
         offsetX = svgContainerWidth / 3 * i;
       }
       row1.push({
-        x1: offsetX + svgContainerWidth / 3 / 2,
-        y1: svgContainerWidth / 3 / 2
+        x: offsetX + svgContainerWidth / 3 / 2,
+        y: svgContainerWidth / 3 / 2
       });
     }
     for (let i = 0; i < 3; i++) {
@@ -118,8 +157,8 @@ export default class App extends React.Component<void, State> {
         offsetX = svgContainerWidth / 3 * i;
       }
       row2.push({
-        x1: offsetX + svgContainerWidth / 3 / 2,
-        y1: offsetY + svgContainerWidth / 3 / 2
+        x: offsetX + svgContainerWidth / 3 / 2,
+        y: offsetY + svgContainerWidth / 3 / 2
       });
     }
     for (let i = 0; i < 3; i++) {
@@ -129,8 +168,8 @@ export default class App extends React.Component<void, State> {
         offsetX = svgContainerWidth / 3 * i;
       }
       row3.push({
-        x1: offsetX + svgContainerWidth / 3 / 2,
-        y1: offsetY + svgContainerWidth / 3 / 2
+        x: offsetX + svgContainerWidth / 3 / 2,
+        y: offsetY + svgContainerWidth / 3 / 2
       });
     }
 
@@ -138,23 +177,40 @@ export default class App extends React.Component<void, State> {
   }
 
   render() {
-    let {activeIndex, initialCoordinate} = this.state;
+    let {
+      activeIndex,
+      initialCoordinate,
+      fixedLine,
+      activeCoordinate
+    } = this.state;
     return (
       <View style={styles.container}>
         <Animated.View {...this.panResponder.panHandlers}>
           <Svg height={svgContainerHeight} width={svgContainerWidth}>
             {this._dots.map((dot, i) => {
+              return <Circle key={i} cx={dot.x} cy={dot.y} r="5" fill="red" />;
+            })}
+            {fixedLine.map((coordinate, index) => {
+              let {startX, startY, endX, endY} = coordinate;
               return (
-                <Circle key={i} cx={dot.x1} cy={dot.y1} r="5" fill="red" />
+                <Line
+                  key={`fixedLine${index}`}
+                  x1={startX}
+                  y1={startY}
+                  x2={endX}
+                  y2={endY}
+                  stroke="red"
+                  strokeWidth="2"
+                />
               );
             })}
-            {this.state.activeIndex > -1 ? (
+            {activeIndex > -1 ? (
               <Line
                 ref={component => (this._lineComponent = component)}
-                x1={initialCoordinate.x}
-                y1={initialCoordinate.y}
-                x2={initialCoordinate.x}
-                y2={initialCoordinate.y}
+                x1={activeCoordinate.x}
+                y1={activeCoordinate.y}
+                x2={activeCoordinate.x}
+                y2={activeCoordinate.y}
                 stroke="red"
                 strokeWidth="2"
               />
@@ -167,11 +223,11 @@ export default class App extends React.Component<void, State> {
   _getIndex(x: number, y: number) {
     let index = -1;
     for (let i = 0; i < this._dots.length; i++) {
-      let {x1, y1} = this._dots[i];
+      let {x: dotX, y: dotY} = this._dots[i];
       if (
-        x1 + HITSLOP >= x &&
-        x1 - HITSLOP <= x &&
-        (y1 + HITSLOP >= y && y1 - HITSLOP <= y)
+        dotX + HITSLOP >= x &&
+        dotX - HITSLOP <= x &&
+        (dotY + HITSLOP >= y && dotY - HITSLOP <= y)
       ) {
         index = i;
         break;
