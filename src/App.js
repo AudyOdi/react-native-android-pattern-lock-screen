@@ -35,7 +35,8 @@ type State = {
   activeIndex: number,
   initialCoordinate: Coordinate,
   activeCoordinate: Coordinate,
-  fixedLine: Array<LineCoordinate>
+  fixedLine: Array<LineCoordinate>,
+  pattern: Array<number>
 };
 
 export default class App extends React.Component<void, State> {
@@ -56,7 +57,8 @@ export default class App extends React.Component<void, State> {
         x: 0,
         y: 0
       },
-      fixedLine: []
+      fixedLine: [],
+      pattern: []
     };
 
     this.panAnimation = new Animated.ValueXY({x: 0, y: 0});
@@ -93,12 +95,17 @@ export default class App extends React.Component<void, State> {
       },
       onPanResponderMove: (e, gestureState) => {
         let {dx, dy, x0, y0} = gestureState;
-        let {fixedLine, initialCoordinate, activeCoordinate} = this.state;
+        let {
+          fixedLine,
+          initialCoordinate,
+          activeCoordinate,
+          pattern
+        } = this.state;
         let endLineX = initialCoordinate.x + dx;
         let endLineY = initialCoordinate.y + dy;
 
         let hitIndex = this._getIndex(endLineX, endLineY);
-        if (hitIndex > -1) {
+        if (hitIndex > -1 && !pattern.includes(hitIndex)) {
           let endDot = this._dots[hitIndex];
           fixedLine.push({
             startX: activeCoordinate.x,
@@ -106,7 +113,9 @@ export default class App extends React.Component<void, State> {
             endX: endDot.x,
             endY: endDot.y
           });
+          pattern.push(hitIndex);
           this.setState({
+            pattern,
             fixedLine,
             activeCoordinate: {
               x: endDot.x,
@@ -132,7 +141,8 @@ export default class App extends React.Component<void, State> {
             x: 0,
             y: 0
           },
-          fixedLine: []
+          fixedLine: [],
+          pattern: []
         });
       }
     });
