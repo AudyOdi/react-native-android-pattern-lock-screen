@@ -43,8 +43,13 @@ export default class App extends React.Component<void, State> {
   panResponder: Object;
   panAnimation: Animated.ValueXY;
   _lineComponent: ?Object;
+  _dotsComponent: Array<?Object>;
   _dots: Array<Coordinate>;
   _mappedDotsIndex: Array<Coordinate>;
+  _animatedIndexes: Array<number>;
+
+  animatedValue: Animated.Value;
+  patternIndexes: Array<number>;
 
   constructor() {
     super(...arguments);
@@ -56,6 +61,16 @@ export default class App extends React.Component<void, State> {
     };
 
     this._dots = this._setInitialDots();
+    this._dotsComponent = [];
+    this.patternIndexes = [];
+
+    this.animatedValue = new Animated.Value(5);
+    this.animatedValue.addListener(({value}) => {
+      this._animatedIndexes.forEach(index => {
+        let dot = this._dotsComponent[index];
+        dot && dot.setNativeProps({r: value.toString()});
+      });
+    });
 
     this.panAnimation = new Animated.ValueXY({x: 0, y: 0});
 
@@ -121,15 +136,43 @@ export default class App extends React.Component<void, State> {
             pattern.push({x: dot.x, y: dot.y});
           });
 
-          pattern.push({x: hitDotCoordinate.x, y: hitDotCoordinate.y});
-          this.setState({
-            pattern,
-            fixedLine,
-            activeDotCoordinate: {
-              x: hitDotCoordinate.x,
-              y: hitDotCoordinate.y
-            }
+          let lastestCoordinate = {
+            x: hitDotCoordinate.x,
+            y: hitDotCoordinate.y
+          };
+
+          pattern.push(lastestCoordinate);
+
+          this._animatedIndexes = [
+            ...additionalPassedDots,
+            lastestCoordinate
+          ].map(newDot => {
+            return this._dots.findIndex(
+              dot => dot.x === newDot.x && dot.y === newDot.y
+            );
           });
+
+          this.setState(
+            {
+              pattern,
+              fixedLine,
+              activeDotCoordinate: {
+                x: hitDotCoordinate.x,
+                y: hitDotCoordinate.y
+              }
+            },
+            () => {
+              Animated.timing(this.animatedValue, {
+                toValue: 10,
+                duration: 100
+              }).start(() => {
+                Animated.timing(this.animatedValue, {
+                  toValue: 5,
+                  duration: 100
+                }).start();
+              });
+            }
+          );
         } else {
           this._lineComponent &&
             this._lineComponent.setNativeProps({
@@ -139,15 +182,31 @@ export default class App extends React.Component<void, State> {
         }
       },
       onPanResponderRelease: () => {
-        Alert.alert(
-          this.state.pattern.map(path => JSON.stringify(path)).join(' ')
-        );
-        this.setState({
-          initialGestureCoordinate: null,
-          activeDotCoordinate: null,
-          fixedLine: [],
-          pattern: []
+        // Alert.alert(
+        //   this.state.pattern.map(path => JSON.stringify(path)).join(' ')
+        // );
+
+        let {pattern} = this.state;
+        this.patternIndexes = pattern.map(newDot => {
+          return this._dots.findIndex(
+            dot => dot.x === newDot.x && dot.y === newDot.y
+          );
         });
+        this.setState(
+          {
+            initialGestureCoordinate: null,
+            activeDotCoordinate: null
+          },
+          () => {
+            setTimeout(() => {
+              this.patternIndexes = [];
+              this.setState({
+                fixedLine: [],
+                pattern: []
+              });
+            }, 2500);
+          }
+        );
       }
     });
   }
@@ -164,7 +223,16 @@ export default class App extends React.Component<void, State> {
         <Animated.View {...this.panResponder.panHandlers}>
           <Svg height={svgContainerHeight} width={svgContainerWidth}>
             {this._dots.map((dot, i) => {
-              return <Circle key={i} cx={dot.x} cy={dot.y} r="5" fill="red" />;
+              return (
+                <Circle
+                  ref={circle => (this._dotsComponent[i] = circle)}
+                  key={i}
+                  cx={dot.x}
+                  cy={dot.y}
+                  r="5"
+                  fill={(this.patternIndexes.includes(i) && 'blue') || 'red'}
+                />
+              );
             })}
             {fixedLine.map((coordinate, index) => {
               let {startX, startY, endX, endY} = coordinate;
@@ -175,7 +243,7 @@ export default class App extends React.Component<void, State> {
                   y1={startY}
                   x2={endX}
                   y2={endY}
-                  stroke="red"
+                  stroke={(!activeDotCoordinate && 'blue') || 'red'}
                   strokeWidth="2"
                 />
               );
@@ -296,7 +364,6 @@ export default class App extends React.Component<void, State> {
           dot => dot.x === i && dot.y === mappedNewDotIndex.y
         );
         if (index > -1) {
-          testIndex.push(index);
           additionalPassedDots.push(this._dots[index]);
         }
       }
@@ -313,7 +380,6 @@ export default class App extends React.Component<void, State> {
           dot => dot.x === mappedLastDotIndex.x && dot.y === i
         );
         if (index > -1) {
-          testIndex.push(index);
           additionalPassedDots.push(this._dots[index]);
         }
       }
@@ -334,7 +400,6 @@ export default class App extends React.Component<void, State> {
           dot => dot.x === i && dot.y === i
         );
         if (index > -1) {
-          testIndex.push(index);
           additionalPassedDots.push(this._dots[index]);
         }
       }
@@ -355,7 +420,6 @@ export default class App extends React.Component<void, State> {
           dot => dot.x === i && dot.y === i
         );
         if (index > -1) {
-          testIndex.push(index);
           additionalPassedDots.push(this._dots[index]);
         }
       }
