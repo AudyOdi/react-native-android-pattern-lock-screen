@@ -7,18 +7,15 @@ import {
   View,
   Animated,
   PanResponder,
-  Dimensions,
-  Alert
+  Dimensions
 } from 'react-native';
 import {Svg} from 'expo';
-const {Line, Circle} = Svg;
 
-const {width, height} = Dimensions.get('window');
-
-let svgContainerHeight = height / 2;
-let svgContainerWidth = width;
-
-const HITSLOP = 15;
+import {
+  populateDotsCoordinate,
+  getPassedDots,
+  getAdditionalPassedDotsCoordinate
+} from './helpers';
 
 type Coordinate = {
   x: number,
@@ -38,6 +35,14 @@ type State = {
   fixedLine: Array<LineCoordinate>,
   pattern: Array<Coordinate>
 };
+
+const {Line, Circle} = Svg;
+const HITSLOP = 15;
+const DOTS_DIMENSION = 3;
+const {width, height} = Dimensions.get('window');
+
+const svgContainerHeight = height / 2;
+const svgContainerWidth = width;
 
 export default class App extends React.Component<void, State> {
   panResponder: Object;
@@ -60,7 +65,13 @@ export default class App extends React.Component<void, State> {
       pattern: []
     };
 
-    this._dots = this._setInitialDots();
+    let {actualDotsCoordinate, mappedDotsIndex} = populateDotsCoordinate(
+      DOTS_DIMENSION,
+      svgContainerWidth,
+      svgContainerHeight
+    );
+    this._dots = actualDotsCoordinate;
+    this._mappedDotsIndex = mappedDotsIndex;
     this._dotsComponent = [];
     this.patternIndexes = [];
 
@@ -83,10 +94,10 @@ export default class App extends React.Component<void, State> {
         this.panAnimation.setOffset({x: 0, y: 0});
         this.panAnimation.setValue({x: 0, y: 0});
 
-        let activeDotCoordinate = this._getDotCoordinate({
-          x: locationX,
-          y: locationY
-        });
+        let activeDotCoordinate = getPassedDots(
+          {x: locationX, y: locationY},
+          this._dots
+        );
 
         if (activeDotCoordinate) {
           this.setState({
@@ -112,12 +123,12 @@ export default class App extends React.Component<void, State> {
         let endLineX = initialGestureCoordinate.x + dx;
         let endLineY = initialGestureCoordinate.y + dy;
 
-        let hitDotCoordinate = this._getDotCoordinate({
-          x: endLineX,
-          y: endLineY
-        });
+        let hitDotCoordinate = getPassedDots(
+          {x: endLineX, y: endLineY},
+          this._dots
+        );
 
-        if (hitDotCoordinate && !this._dotGetPassed(hitDotCoordinate)) {
+        if (hitDotCoordinate && !this._hasDotGetPassed(hitDotCoordinate)) {
           fixedLine.push({
             startX: activeDotCoordinate.x,
             startY: activeDotCoordinate.y,
@@ -126,9 +137,11 @@ export default class App extends React.Component<void, State> {
           });
           let additionalPassedDots = [];
           if (pattern.length > 0) {
-            additionalPassedDots = this._getAdditionalPassedDots(
+            additionalPassedDots = getAdditionalPassedDotsCoordinate(
               pattern[pattern.length - 1],
-              {x: hitDotCoordinate.x, y: hitDotCoordinate.y}
+              {x: hitDotCoordinate.x, y: hitDotCoordinate.y},
+              this._dots,
+              this._mappedDotsIndex
             );
           }
 
@@ -182,10 +195,6 @@ export default class App extends React.Component<void, State> {
         }
       },
       onPanResponderRelease: () => {
-        // Alert.alert(
-        //   this.state.pattern.map(path => JSON.stringify(path)).join(' ')
-        // );
-
         let {pattern} = this.state;
         this.patternIndexes = pattern.map(newDot => {
           return this._dots.findIndex(
@@ -265,166 +274,13 @@ export default class App extends React.Component<void, State> {
     );
   }
 
-  _setInitialDots() {
-    let row1 = {indexes: [], dots: []};
-    let row2 = {indexes: [], dots: []};
-    let row3 = {indexes: [], dots: []};
-    for (let i = 0; i < 3; i++) {
-      let offsetX = 0;
-      if (i > 0) {
-        offsetX = svgContainerWidth / 3 * i;
-      }
-      row1.dots.push({
-        x: offsetX + svgContainerWidth / 3 / 2,
-        y: svgContainerWidth / 3 / 2
-      });
-      row1.indexes.push({x: i, y: 0});
-    }
-    for (let i = 0; i < 3; i++) {
-      let offsetX = 0;
-      let offsetY = svgContainerHeight / 3;
-      if (i > 0) {
-        offsetX = svgContainerWidth / 3 * i;
-      }
-      row2.dots.push({
-        x: offsetX + svgContainerWidth / 3 / 2,
-        y: offsetY + svgContainerWidth / 3 / 2
-      });
-      row2.indexes.push({x: i, y: 1});
-    }
-    for (let i = 0; i < 3; i++) {
-      let offsetX = 0;
-      let offsetY = svgContainerHeight / 3 * 2;
-      if (i > 0) {
-        offsetX = svgContainerWidth / 3 * i;
-      }
-      row3.dots.push({
-        x: offsetX + svgContainerWidth / 3 / 2,
-        y: offsetY + svgContainerWidth / 3 / 2
-      });
-      row3.indexes.push({x: i, y: 2});
-    }
-
-    this._mappedDotsIndex = [...row1.indexes, ...row2.indexes, ...row3.indexes];
-
-    return [...row1.dots, ...row2.dots, ...row3.dots];
-  }
-  _getDotCoordinate({x, y}: Coordinate) {
-    let coordinate;
-    for (let i = 0; i < this._dots.length; i++) {
-      let {x: dotX, y: dotY} = this._dots[i];
-      if (
-        dotX + HITSLOP >= x &&
-        dotX - HITSLOP <= x &&
-        (dotY + HITSLOP >= y && dotY - HITSLOP <= y)
-      ) {
-        coordinate = {x: dotX, y: dotY};
-        break;
-      }
-    }
-    return coordinate;
-  }
-
-  _dotGetPassed({x, y}: Coordinate) {
+  _hasDotGetPassed({x, y}: Coordinate) {
     let {pattern} = this.state;
     return pattern.find(dot => {
       return dot.x === x && dot.y === y;
     }) == null
       ? false
       : true;
-  }
-
-  _getAdditionalPassedDots(
-    lastPassedCoordinate: Coordinate,
-    newPassedCoordinate: Coordinate
-  ) {
-    let newPassedIndex = this._dots.findIndex(
-      dot => newPassedCoordinate.x === dot.x && newPassedCoordinate.y === dot.y
-    );
-    let lastPassedIndex = this._dots.findIndex(
-      dot =>
-        lastPassedCoordinate.x === dot.x && lastPassedCoordinate.y === dot.y
-    );
-    if (newPassedIndex == null || lastPassedIndex == null) {
-      return [];
-    }
-    let mappedLastDotIndex = this._mappedDotsIndex[lastPassedIndex];
-    let mappedNewDotIndex = this._mappedDotsIndex[newPassedIndex];
-
-    let additionalPassedDots = [];
-    let testIndex = [];
-    // check horizontal
-    if (mappedNewDotIndex.y === mappedLastDotIndex.y) {
-      for (
-        let i = Math.min(mappedNewDotIndex.x, mappedLastDotIndex.x) + 1;
-        i < Math.max(mappedNewDotIndex.x, mappedLastDotIndex.x);
-        i++
-      ) {
-        let index = this._mappedDotsIndex.findIndex(
-          dot => dot.x === i && dot.y === mappedNewDotIndex.y
-        );
-        if (index > -1) {
-          additionalPassedDots.push(this._dots[index]);
-        }
-      }
-    }
-
-    // check vertical
-    if (mappedNewDotIndex.x === mappedLastDotIndex.x) {
-      for (
-        let i = Math.min(mappedNewDotIndex.y, mappedLastDotIndex.y) + 1;
-        i < Math.max(mappedNewDotIndex.y, mappedLastDotIndex.y);
-        i++
-      ) {
-        let index = this._mappedDotsIndex.findIndex(
-          dot => dot.x === mappedLastDotIndex.x && dot.y === i
-        );
-        if (index > -1) {
-          additionalPassedDots.push(this._dots[index]);
-        }
-      }
-    }
-
-    // check diagonal from top left to bottom right
-
-    if (
-      mappedNewDotIndex.x === mappedNewDotIndex.y &&
-      mappedLastDotIndex.x === mappedLastDotIndex.y
-    ) {
-      for (
-        let i = Math.min(mappedNewDotIndex.y, mappedLastDotIndex.y) + 1;
-        i < Math.max(mappedNewDotIndex.y, mappedLastDotIndex.y);
-        i++
-      ) {
-        let index = this._mappedDotsIndex.findIndex(
-          dot => dot.x === i && dot.y === i
-        );
-        if (index > -1) {
-          additionalPassedDots.push(this._dots[index]);
-        }
-      }
-    }
-
-    // check diagonal from bottom left to top right
-
-    if (
-      mappedNewDotIndex.x === mappedLastDotIndex.y &&
-      mappedNewDotIndex.y === mappedLastDotIndex.x
-    ) {
-      for (
-        let i = Math.min(mappedNewDotIndex.y, mappedLastDotIndex.y) + 1;
-        i < Math.max(mappedNewDotIndex.y, mappedLastDotIndex.y);
-        i++
-      ) {
-        let index = this._mappedDotsIndex.findIndex(
-          dot => dot.x === i && dot.y === i
-        );
-        if (index > -1) {
-          additionalPassedDots.push(this._dots[index]);
-        }
-      }
-    }
-    return additionalPassedDots;
   }
 }
 
