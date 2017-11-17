@@ -1,11 +1,11 @@
 // @flow
 
 import populateDotsCoordinate from './populateDotsCoordinate';
-import getPassedDots from './getPassedDots';
-import getAdditionalPassedDotsCoordinate from './getAdditionalPassedDotsCoordinate';
+import getPassedDotIndex from './getPassedDotIndex';
+import getAdditionalPassedDotsIndexes from './getAdditionalPassedDotsIndexes';
 
 export {
   populateDotsCoordinate,
-  getPassedDots,
-  getAdditionalPassedDotsCoordinate
+  getPassedDotIndex,
+  getAdditionalPassedDotsIndexes
 };
