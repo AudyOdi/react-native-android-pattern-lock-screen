@@ -45,7 +45,7 @@ const {width, height} = Dimensions.get('window');
 const svgContainerHeight = height / 2;
 const svgContainerWidth = width;
 
-export default class PatternLockScreen extends React.Component<void, State> {
+export default class PatternLockScreen extends React.Component<{}, State> {
   _panResponder: {panHandlers: Object};
   _activeLineComponent: ?Object;
   _dots: Array<Coordinate>;
@@ -207,7 +207,7 @@ export default class PatternLockScreen extends React.Component<void, State> {
                   cx={dot.x}
                   cy={dot.y}
                   r={DEFAULT_DOT_RADIUS}
-                  fill="red"
+                  fill="white"
                 />
               );
             })}
@@ -239,7 +239,7 @@ export default class PatternLockScreen extends React.Component<void, State> {
                   y1={actualStartDot.y}
                   x2={actualEndDot.x}
                   y2={actualEndDot.y}
-                  stroke={(!activeDotCoordinate && 'blue') || 'red'}
+                  stroke="white"
                   strokeWidth="2"
                 />
               );
@@ -251,7 +251,7 @@ export default class PatternLockScreen extends React.Component<void, State> {
                 y1={activeDotCoordinate.y}
                 x2={activeDotCoordinate.x}
                 y2={activeDotCoordinate.y}
-                stroke="red"
+                stroke="white"
                 strokeWidth="2"
               />
             ) : null}
@@ -274,7 +274,7 @@ export default class PatternLockScreen extends React.Component<void, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center'
   }

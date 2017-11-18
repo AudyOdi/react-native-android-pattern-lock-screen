@@ -1,67 +1,94 @@
 // @flow
 
 import React from 'react';
+import autobind from 'class-autobind';
 import {
   View,
   Text,
-  StatusBar,
+  TouchableOpacity,
   StyleSheet,
   Dimensions,
   Animated,
   PanResponder
 } from 'react-native';
+import {Icon} from 'react-native-elements';
 
+import PatternLockScreen from './PatternLockScreen';
 import backgroundImage from './assets/default_background.jpg';
 import {getDayName, getMonthName} from './helpers';
 
 const {width, height} = Dimensions.get('window');
 
-export default class App extends React.Component<void, void> {
+type State = {
+  showPatternLock: boolean
+};
+
+export default class App extends React.Component<void, State> {
   _panResponder: {panHandlers: Object};
-  _panCoordinate: Animated.ValueXY;
+  _panYCoordinate: Animated.Value;
+  _patternContainerOpacity: Animated.Value;
+  _value: number;
   constructor() {
     super(...arguments);
-    this._panCoordinate = new Animated.ValueXY({x: 0, y: 0});
+    autobind(this);
+    this._panYCoordinate = new Animated.Value(0);
+    this._patternContainerOpacity = new Animated.Value(0);
+    this._value = 0;
+    this.state = {
+      showPatternLock: false
+    };
+    this._panYCoordinate.addListener(({value}) => (this._value = value));
     this._panResponder = PanResponder.create({
-      onMoveShouldSetResponderCapture: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetResponderCapture: () => !this.state.showPatternLock,
+      onMoveShouldSetPanResponderCapture: () => !this.state.showPatternLock,
 
       onPanResponderGrant: () => {
-        this._panCoordinate.setOffset({x: 0, y: 0});
-        this._panCoordinate.setValue({x: 0, y: 0});
+        this._panYCoordinate.setValue(0);
       },
 
       onPanResponderMove: (e, gestureState) => {
-        let {dx, dy} = gestureState;
-        this._panCoordinate.setValue({x: dx, y: dy});
+        let {dy} = gestureState;
+        this._panYCoordinate.setValue(dy);
       },
 
       onPanResponderRelease: () => {
-        Animated.parallel([
-          Animated.timing(this._panCoordinate.x, {toValue: 0, duration: 200}),
-          Animated.timing(this._panCoordinate.y, {toValue: 0, duration: 200})
-        ]).start();
+        if (this._value < -250) {
+          this.setState({showPatternLock: true});
+          Animated.parallel([
+            Animated.timing(this._panYCoordinate, {
+              toValue: -500,
+              duration: 300
+            }),
+            Animated.timing(this._patternContainerOpacity, {
+              toValue: 1,
+              duration: 400
+            })
+          ]).start();
+        } else {
+          this._resetAnimation();
+        }
       }
     });
   }
   render() {
-    let paddingTop = this._panCoordinate.y.interpolate({
+    let {showPatternLock} = this.state;
+    let paddingTop = this._panYCoordinate.interpolate({
       inputRange: [-300, 0],
       outputRange: [170, 200],
       extrapolate: 'clamp'
     });
-    let scale = this._panCoordinate.y.interpolate({
+    let scale = this._panYCoordinate.interpolate({
       inputRange: [-300, 0, 200],
       outputRange: [0.5, 1, 1.2],
       extrapolate: 'clamp'
     });
 
-    let timeOpacity = this._panCoordinate.y.interpolate({
+    let timeOpacity = this._panYCoordinate.interpolate({
       inputRange: [-300, 0],
       outputRange: [0, 1],
       extrapolate: 'clamp'
     });
-    let backgroundOpacity = this._panCoordinate.y.interpolate({
+    let backgroundOpacity = this._panYCoordinate.interpolate({
       inputRange: [-300, 0],
       outputRange: [0.2, 1],
       extrapolate: 'clamp'
@@ -97,11 +124,51 @@ export default class App extends React.Component<void, void> {
             >{`${dayName}, ${monthName} ${date}`}</Text>
           </Animated.View>
         </Animated.Image>
+        {showPatternLock ? (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              bottom: 0,
+              right: 0,
+              backgroundColor: 'transparent',
+              opacity: this._patternContainerOpacity
+            }}
+          >
+            <PatternLockScreen />
+            <View
+              style={{
+                alignItems: 'flex-start',
+                paddingLeft: 40,
+                paddingBottom: 10
+              }}
+            >
+              <Icon
+                component={TouchableOpacity}
+                onPress={this._onBackPress}
+                name="chevron-left"
+                color="white"
+                size={45}
+              />
+            </View>
+          </Animated.View>
+        ) : null}
       </View>
     );
   }
+  _onBackPress() {
+    this.setState({showPatternLock: false});
+    this._patternContainerOpacity.setValue(0);
+    this._resetAnimation();
+  }
+  _resetAnimation() {
+    Animated.timing(this._panYCoordinate, {
+      toValue: 0,
+      duration: 200
+    }).start();
+  }
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
