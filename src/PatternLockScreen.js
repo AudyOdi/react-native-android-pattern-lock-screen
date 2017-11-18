@@ -7,7 +7,7 @@ import {
   View,
   Animated,
   PanResponder,
-  Dimensions
+  Alert
 } from 'react-native';
 import {Svg} from 'expo';
 
@@ -22,30 +22,30 @@ type Coordinate = {
   y: number
 };
 
-type LineCoordinate = {
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number
+type Props = {
+  containerDimension: number,
+  containerWidth: number,
+  containerHeight: number,
+  correctPattern: Array<Coordinate>,
+  hint: string,
+  onPatternMatch: () => void
 };
 
 type State = {
   activeDotCoordinate: ?Coordinate,
   initialGestureCoordinate: ?Coordinate,
   pattern: Array<Coordinate>,
-  animateIndexes: Array<number>
+  animateIndexes: Array<number>,
+  showError: boolean,
+  showHint: boolean
 };
 
 const {Line, Circle} = Svg;
-const DOTS_DIMENSION = 3;
 const DEFAULT_DOT_RADIUS = 5;
 const SNAP_DOT_RADIUS = 10;
 const SNAP_DURATION = 100;
-const {width, height} = Dimensions.get('window');
-const svgContainerHeight = height / 2;
-const svgContainerWidth = width;
 
-export default class PatternLockScreen extends React.Component<{}, State> {
+export default class PatternLockScreen extends React.Component<Props, State> {
   _panResponder: {panHandlers: Object};
   _activeLineComponent: ?Object;
   _dots: Array<Coordinate>;
@@ -60,13 +60,17 @@ export default class PatternLockScreen extends React.Component<{}, State> {
       initialGestureCoordinate: null,
       activeDotCoordinate: null,
       pattern: [],
-      animateIndexes: []
+      animateIndexes: [],
+      showError: false,
+      showHint: false
     };
 
+    let {containerDimension, containerWidth, containerHeight} = this.props;
+
     let {actualDotsCoordinate, mappedDotsIndex} = populateDotsCoordinate(
-      DOTS_DIMENSION,
-      svgContainerWidth,
-      svgContainerHeight
+      containerDimension,
+      containerWidth,
+      containerHeight
     );
     this._dots = actualDotsCoordinate;
     this._mappedDotsIndex = mappedDotsIndex;
@@ -81,8 +85,8 @@ export default class PatternLockScreen extends React.Component<{}, State> {
     });
 
     this._panResponder = PanResponder.create({
-      onMoveShouldSetResponderCapture: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetResponderCapture: () => !this.state.showError,
+      onMoveShouldSetPanResponderCapture: () => !this.state.showError,
 
       onPanResponderGrant: e => {
         let {locationX, locationY} = e.nativeEvent;
@@ -183,23 +187,64 @@ export default class PatternLockScreen extends React.Component<{}, State> {
         }
       },
       onPanResponderRelease: () => {
-        this.setState({
-          initialGestureCoordinate: null,
-          activeDotCoordinate: null,
-          animateIndexes: [],
-          pattern: []
-        });
+        let {pattern} = this.state;
+        if (!this._isPatternMatched(pattern)) {
+          this.setState(
+            {
+              initialGestureCoordinate: null,
+              activeDotCoordinate: null,
+              showError: true
+            },
+            () => {
+              setTimeout(() => {
+                this.setState({
+                  showHint: true,
+                  showError: false,
+                  pattern: [],
+                  animateIndexes: []
+                });
+              }, 2000);
+            }
+          );
+        } else {
+          Alert.alert(
+            '',
+            'Congratulations unlock success',
+            [{text: 'OK', onPress: this.props.onPatternMatch}],
+            {cancelable: false}
+          );
+        }
       }
     });
   }
 
   render() {
-    let {initialGestureCoordinate, activeDotCoordinate, pattern} = this.state;
+    let {containerHeight, containerWidth, hint} = this.props;
+    let {
+      initialGestureCoordinate,
+      activeDotCoordinate,
+      pattern,
+      showError,
+      showHint
+    } = this.state;
+    let message;
+    if (showHint) {
+      message = `hint: ${hint}`;
+    } else if (showError) {
+      message = 'Wrong Pattern';
+    }
     return (
       <View style={styles.container}>
+        <View style={styles.hintContainer}>
+          <Text style={styles.hintText}>{message}</Text>
+        </View>
         <Animated.View {...this._panResponder.panHandlers}>
-          <Svg height={svgContainerHeight} width={svgContainerWidth}>
+          <Svg height={containerHeight} width={containerWidth}>
             {this._dots.map((dot, i) => {
+              let mappedDot = this._mappedDotsIndex[i];
+              let isIncludedInPattern = pattern.find(
+                dot => dot.x === mappedDot.x && dot.y === mappedDot.y
+              );
               return (
                 <Circle
                   ref={circle => (this._dotsComponent[i] = circle)}
@@ -207,7 +252,7 @@ export default class PatternLockScreen extends React.Component<{}, State> {
                   cx={dot.x}
                   cy={dot.y}
                   r={DEFAULT_DOT_RADIUS}
-                  fill="white"
+                  fill={(showError && isIncludedInPattern && 'red') || 'white'}
                 />
               );
             })}
@@ -239,7 +284,7 @@ export default class PatternLockScreen extends React.Component<{}, State> {
                   y1={actualStartDot.y}
                   x2={actualEndDot.x}
                   y2={actualEndDot.y}
-                  stroke="white"
+                  stroke={showError ? 'red' : 'white'}
                   strokeWidth="2"
                 />
               );
@@ -269,6 +314,23 @@ export default class PatternLockScreen extends React.Component<{}, State> {
       ? false
       : true;
   }
+
+  _isPatternMatched(currentPattern: Array<Coordinate>) {
+    let {correctPattern} = this.props;
+    if (currentPattern.length !== correctPattern.length) {
+      return false;
+    }
+    let matched = true;
+    for (let index = 0; index < currentPattern.length; index++) {
+      let correctDot = correctPattern[index];
+      let currentDot = currentPattern[index];
+      if (correctDot.x !== currentDot.x && correctDot.y !== currentDot.y) {
+        matched = false;
+        break;
+      }
+    }
+    return matched;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -277,5 +339,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center'
+  },
+  hintContainer: {
+    alignItems: 'center',
+    paddingBottom: 10,
+    height: 20
+  },
+  hintText: {
+    color: 'white'
   }
 });

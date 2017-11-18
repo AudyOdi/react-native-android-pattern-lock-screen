@@ -18,6 +18,18 @@ import backgroundImage from './assets/default_background.jpg';
 import {getDayName, getMonthName} from './helpers';
 
 const {width, height} = Dimensions.get('window');
+const PATTERN_CONTAINER_HEIGHT = height / 2;
+const PATTERN_CONTAINER_WIDTH = width;
+const PATTERN_DIMENSION = 3;
+const CORRECT_UNLOCK_PATTERN = [
+  {x: 0, y: 0},
+  {x: 1, y: 0},
+  {x: 2, y: 0},
+  {x: 1, y: 1},
+  {x: 0, y: 2},
+  {x: 1, y: 2},
+  {x: 2, y: 2}
+];
 
 type State = {
   showPatternLock: boolean
@@ -28,6 +40,7 @@ export default class App extends React.Component<void, State> {
   _panYCoordinate: Animated.Value;
   _patternContainerOpacity: Animated.Value;
   _value: number;
+
   constructor() {
     super(...arguments);
     autobind(this);
@@ -72,11 +85,13 @@ export default class App extends React.Component<void, State> {
   }
   render() {
     let {showPatternLock} = this.state;
+
     let paddingTop = this._panYCoordinate.interpolate({
       inputRange: [-300, 0],
       outputRange: [170, 200],
       extrapolate: 'clamp'
     });
+
     let scale = this._panYCoordinate.interpolate({
       inputRange: [-300, 0, 200],
       outputRange: [0.5, 1, 1.2],
@@ -88,6 +103,7 @@ export default class App extends React.Component<void, State> {
       outputRange: [0, 1],
       extrapolate: 'clamp'
     });
+
     let backgroundOpacity = this._panYCoordinate.interpolate({
       inputRange: [-300, 0],
       outputRange: [0.2, 1],
@@ -136,7 +152,14 @@ export default class App extends React.Component<void, State> {
               opacity: this._patternContainerOpacity
             }}
           >
-            <PatternLockScreen />
+            <PatternLockScreen
+              containerDimension={PATTERN_DIMENSION}
+              containerWidth={PATTERN_CONTAINER_WIDTH}
+              containerHeight={PATTERN_CONTAINER_HEIGHT}
+              correctPattern={CORRECT_UNLOCK_PATTERN}
+              hint="Draw letter 'Z' from top left to bottom right"
+              onPatternMatch={this._onBackPress}
+            />
             <View
               style={{
                 alignItems: 'flex-start',
