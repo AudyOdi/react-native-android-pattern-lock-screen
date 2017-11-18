@@ -324,7 +324,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
     for (let index = 0; index < currentPattern.length; index++) {
       let correctDot = correctPattern[index];
       let currentDot = currentPattern[index];
-      if (correctDot.x !== currentDot.x && correctDot.y !== currentDot.y) {
+      if (correctDot.x !== currentDot.x || correctDot.y !== currentDot.y) {
         matched = false;
         break;
       }

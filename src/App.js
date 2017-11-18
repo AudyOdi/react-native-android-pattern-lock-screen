@@ -122,7 +122,6 @@ export default class App extends React.Component<void, State> {
           source={backgroundImage}
           resizeMode="cover"
           style={[styles.container, {opacity: backgroundOpacity}]}
-          {...this._panResponder.panHandlers}
         >
           <Animated.View
             style={{
@@ -133,6 +132,7 @@ export default class App extends React.Component<void, State> {
               paddingTop,
               transform: [{scale}]
             }}
+            {...this._panResponder.panHandlers}
           >
             <Text style={styles.time}>{`${hour}:${minute}`}</Text>
             <Text
