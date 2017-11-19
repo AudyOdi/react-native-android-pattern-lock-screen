@@ -32,7 +32,14 @@ const CORRECT_UNLOCK_PATTERN = [
 ];
 
 type State = {
-  showPatternLock: boolean
+  showPatternLock: boolean,
+  currentDateTime: {
+    hour: string,
+    minute: string,
+    dayName: string,
+    monthName: string,
+    date: number
+  }
 };
 
 export default class App extends React.Component<void, State> {
@@ -41,15 +48,14 @@ export default class App extends React.Component<void, State> {
   _patternContainerOpacity: Animated.Value;
   _value: number;
 
+  _updateClockInterval: number;
+
   constructor() {
     super(...arguments);
     autobind(this);
     this._panYCoordinate = new Animated.Value(0);
     this._patternContainerOpacity = new Animated.Value(0);
     this._value = 0;
-    this.state = {
-      showPatternLock: false
-    };
     this._panYCoordinate.addListener(({value}) => (this._value = value));
     this._panResponder = PanResponder.create({
       onMoveShouldSetResponderCapture: () => !this.state.showPatternLock,
@@ -82,9 +88,26 @@ export default class App extends React.Component<void, State> {
         }
       }
     });
+    this.state = {
+      showPatternLock: false,
+      currentDateTime: this._updateClock()
+    };
+  }
+
+  componentDidMount() {
+    this._updateClockInterval = setInterval(() => {
+      let currentDateTime = this._updateClock();
+      this.setState({currentDateTime});
+    }, 1000);
+  }
+  componentWillUnmount() {
+    clearInterval(this._updateClockInterval);
   }
   render() {
-    let {showPatternLock} = this.state;
+    let {
+      showPatternLock,
+      currentDateTime: {hour, minute, dayName, monthName, date}
+    } = this.state;
 
     let paddingTop = this._panYCoordinate.interpolate({
       inputRange: [-300, 0],
@@ -109,12 +132,6 @@ export default class App extends React.Component<void, State> {
       outputRange: [0.2, 1],
       extrapolate: 'clamp'
     });
-
-    let now = new Date();
-    let [hour, minute] = now.toTimeString().split(':');
-    let dayName = getDayName(now.getDay());
-    let monthName = getMonthName(now.getUTCMonth());
-    let date = now.getUTCDate();
 
     return (
       <View style={{flex: 1, backgroundColor: 'black'}}>
@@ -190,6 +207,20 @@ export default class App extends React.Component<void, State> {
       toValue: 0,
       duration: 200
     }).start();
+  }
+  _updateClock() {
+    let now = new Date();
+    let [hour, minute] = now.toTimeString().split(':');
+    let dayName = getDayName(now.getDay());
+    let monthName = getMonthName(now.getUTCMonth());
+    let date = now.getUTCDate();
+    return {
+      hour,
+      minute,
+      dayName,
+      monthName,
+      date
+    };
   }
 }
 const styles = StyleSheet.create({

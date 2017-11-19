@@ -2,7 +2,7 @@
 
 type Coordinate = {x: number, y: number};
 
-const DEFAULT_HIT_SLOP = 15;
+const DEFAULT_HIT_SLOP = 25;
 
 export default function getPassedDotIndex(
   gestureCoordinate: Coordinate,

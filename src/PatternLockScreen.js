@@ -52,7 +52,9 @@ export default class PatternLockScreen extends React.Component<Props, State> {
   _dotsComponent: Array<?Object>;
   _mappedDotsIndex: Array<Coordinate>;
 
-  _snapAnimatedValue: Animated.Value;
+  _snapAnimatedValues: Array<Animated.Value>;
+
+  _resetTimeout: number;
 
   constructor() {
     super(...arguments);
@@ -76,9 +78,11 @@ export default class PatternLockScreen extends React.Component<Props, State> {
     this._mappedDotsIndex = mappedDotsIndex;
     this._dotsComponent = [];
 
-    this._snapAnimatedValue = new Animated.Value(DEFAULT_DOT_RADIUS);
-    this._snapAnimatedValue.addListener(({value}) => {
-      this.state.animateIndexes.forEach(index => {
+    this._snapAnimatedValues = this._dots.map(
+      () => new Animated.Value(DEFAULT_DOT_RADIUS)
+    );
+    this._snapAnimatedValues.forEach((animatedValue, index) => {
+      animatedValue.addListener(({value}) => {
         let dot = this._dotsComponent[index];
         dot && dot.setNativeProps({r: value.toString()});
       });
@@ -160,22 +164,28 @@ export default class PatternLockScreen extends React.Component<Props, State> {
 
           pattern.push(newPattern);
 
+          let animateIndexes = [...filteredAdditionalDots, matchedDotIndex];
+
           this.setState(
             {
               pattern,
               activeDotCoordinate: this._dots[matchedDotIndex],
-              animateIndexes: [...filteredAdditionalDots, matchedDotIndex]
+              animateIndexes
             },
             () => {
-              Animated.timing(this._snapAnimatedValue, {
-                toValue: SNAP_DOT_RADIUS,
-                duration: SNAP_DURATION
-              }).start(() => {
-                Animated.timing(this._snapAnimatedValue, {
-                  toValue: DEFAULT_DOT_RADIUS,
-                  duration: SNAP_DURATION
-                }).start();
-              });
+              if (animateIndexes.length) {
+                animateIndexes.forEach(index => {
+                  Animated.timing(this._snapAnimatedValues[index], {
+                    toValue: SNAP_DOT_RADIUS,
+                    duration: SNAP_DURATION
+                  }).start(() => {
+                    Animated.timing(this._snapAnimatedValues[index], {
+                      toValue: DEFAULT_DOT_RADIUS,
+                      duration: SNAP_DURATION
+                    }).start();
+                  });
+                });
+              }
             }
           );
         } else {
@@ -196,7 +206,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
               showError: true
             },
             () => {
-              setTimeout(() => {
+              this._resetTimeout = setTimeout(() => {
                 this.setState({
                   showHint: true,
                   showError: false,
@@ -216,6 +226,10 @@ export default class PatternLockScreen extends React.Component<Props, State> {
         }
       }
     });
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this._resetTimeout);
   }
 
   render() {
