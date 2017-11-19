@@ -9,7 +9,9 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
-  PanResponder
+  PanResponder,
+  Platform,
+  BackHandler
 } from 'react-native';
 import {Icon} from 'react-native-elements';
 
@@ -71,7 +73,7 @@ export default class App extends React.Component<void, State> {
       },
 
       onPanResponderRelease: () => {
-        if (this._value < -250) {
+        if (this._value < -200) {
           this.setState({showPatternLock: true});
           Animated.parallel([
             Animated.timing(this._panYCoordinate, {
@@ -99,10 +101,15 @@ export default class App extends React.Component<void, State> {
       let currentDateTime = this._updateClock();
       this.setState({currentDateTime});
     }, 1000);
+
+    BackHandler.addEventListener('hardwareBackPress', this._onBackPress);
   }
+
   componentWillUnmount() {
     clearInterval(this._updateClockInterval);
+    BackHandler.removeEventListener('hardwareBackPress', this._onBackPress);
   }
+
   render() {
     let {
       showPatternLock,
@@ -110,45 +117,45 @@ export default class App extends React.Component<void, State> {
     } = this.state;
 
     let paddingTop = this._panYCoordinate.interpolate({
-      inputRange: [-300, 0],
-      outputRange: [170, 200],
+      inputRange: [-250, 0],
+      outputRange: [170, 150],
       extrapolate: 'clamp'
     });
 
     let scale = this._panYCoordinate.interpolate({
-      inputRange: [-300, 0, 200],
+      inputRange: [-250, 0, 200],
       outputRange: [0.5, 1, 1.2],
       extrapolate: 'clamp'
     });
 
     let timeOpacity = this._panYCoordinate.interpolate({
-      inputRange: [-300, 0],
+      inputRange: [-250, 0],
       outputRange: [0, 1],
       extrapolate: 'clamp'
     });
 
     let backgroundOpacity = this._panYCoordinate.interpolate({
-      inputRange: [-300, 0],
+      inputRange: [-250, 0],
       outputRange: [0.2, 1],
       extrapolate: 'clamp'
     });
 
     return (
-      <View style={{flex: 1, backgroundColor: 'black'}}>
+      <View style={styles.root}>
         <Animated.Image
           source={backgroundImage}
           resizeMode="cover"
-          style={[styles.container, {opacity: backgroundOpacity}]}
+          style={[styles.backgroundContainer, {opacity: backgroundOpacity}]}
         >
           <Animated.View
-            style={{
-              flex: 1,
-              backgroundColor: 'transparent',
-              alignItems: 'center',
-              opacity: timeOpacity,
-              paddingTop,
-              transform: [{scale}]
-            }}
+            style={[
+              styles.dateContainer,
+              {
+                paddingTop,
+                opacity: timeOpacity,
+                transform: [{scale}]
+              }
+            ]}
             {...this._panResponder.panHandlers}
           >
             <Text style={styles.time}>{`${hour}:${minute}`}</Text>
@@ -159,15 +166,10 @@ export default class App extends React.Component<void, State> {
         </Animated.Image>
         {showPatternLock ? (
           <Animated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              bottom: 0,
-              right: 0,
-              backgroundColor: 'transparent',
-              opacity: this._patternContainerOpacity
-            }}
+            style={[
+              styles.patternContainer,
+              {opacity: this._patternContainerOpacity}
+            ]}
           >
             <PatternLockScreen
               containerDimension={PATTERN_DIMENSION}
@@ -177,37 +179,43 @@ export default class App extends React.Component<void, State> {
               hint="Draw letter 'Z' from top left to bottom right"
               onPatternMatch={this._onBackPress}
             />
-            <View
-              style={{
-                alignItems: 'flex-start',
-                paddingLeft: 40,
-                paddingBottom: 10
-              }}
-            >
-              <Icon
-                component={TouchableOpacity}
-                onPress={this._onBackPress}
-                name="chevron-left"
-                color="white"
-                size={45}
-              />
-            </View>
+            {Platform.OS === 'ios' && (
+              <View style={styles.backButtonContainer}>
+                <Icon
+                  component={TouchableOpacity}
+                  onPress={this._onBackPress}
+                  name="chevron-left"
+                  color="white"
+                  size={45}
+                />
+              </View>
+            )}
           </Animated.View>
         ) : null}
       </View>
     );
   }
+
   _onBackPress() {
-    this.setState({showPatternLock: false});
-    this._patternContainerOpacity.setValue(0);
-    this._resetAnimation();
+    let {showPatternLock} = this.state;
+    if (showPatternLock) {
+      this.setState({showPatternLock: false});
+      this._patternContainerOpacity.setValue(0);
+      this._resetAnimation();
+      return true;
+    } else {
+      BackHandler.exitApp();
+      return false;
+    }
   }
+
   _resetAnimation() {
     Animated.timing(this._panYCoordinate, {
       toValue: 0,
       duration: 200
     }).start();
   }
+
   _updateClock() {
     let now = new Date();
     let [hour, minute] = now.toTimeString().split(':');
@@ -224,11 +232,20 @@ export default class App extends React.Component<void, State> {
   }
 }
 const styles = StyleSheet.create({
-  container: {
+  root: {
+    flex: 1,
+    backgroundColor: 'black'
+  },
+  backgroundContainer: {
     flex: 1,
     alignItems: 'center',
     height,
     width
+  },
+  dateContainer: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    alignItems: 'center'
   },
   time: {
     fontSize: 80,
@@ -238,5 +255,18 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 20,
     color: '#f2f2f2'
+  },
+  patternContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'transparent'
+  },
+  backButtonContainer: {
+    alignItems: 'flex-start',
+    paddingLeft: 40,
+    paddingBottom: 10
   }
 });

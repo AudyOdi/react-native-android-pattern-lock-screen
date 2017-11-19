@@ -28,7 +28,7 @@ type Props = {
   containerHeight: number,
   correctPattern: Array<Coordinate>,
   hint: string,
-  onPatternMatch: () => void
+  onPatternMatch: () => boolean
 };
 
 type State = {
@@ -103,11 +103,17 @@ export default class PatternLockScreen extends React.Component<Props, State> {
         if (activeDotIndex != null) {
           let activeDotCoordinate = this._dots[activeDotIndex];
           let firstDot = this._mappedDotsIndex[activeDotIndex];
-          this.setState({
-            activeDotCoordinate,
-            initialGestureCoordinate: activeDotCoordinate,
-            pattern: [firstDot]
-          });
+          let dotWillSnap = this._snapAnimatedValues[activeDotIndex];
+          this.setState(
+            {
+              activeDotCoordinate,
+              initialGestureCoordinate: activeDotCoordinate,
+              pattern: [firstDot]
+            },
+            () => {
+              this._snapDot(dotWillSnap);
+            }
+          );
         }
       },
       onPanResponderMove: (e, gestureState) => {
@@ -175,15 +181,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
             () => {
               if (animateIndexes.length) {
                 animateIndexes.forEach(index => {
-                  Animated.timing(this._snapAnimatedValues[index], {
-                    toValue: SNAP_DOT_RADIUS,
-                    duration: SNAP_DURATION
-                  }).start(() => {
-                    Animated.timing(this._snapAnimatedValues[index], {
-                      toValue: DEFAULT_DOT_RADIUS,
-                      duration: SNAP_DURATION
-                    }).start();
-                  });
+                  this._snapDot(this._snapAnimatedValues[index]);
                 });
               }
             }
@@ -198,31 +196,33 @@ export default class PatternLockScreen extends React.Component<Props, State> {
       },
       onPanResponderRelease: () => {
         let {pattern} = this.state;
-        if (!this._isPatternMatched(pattern)) {
-          this.setState(
-            {
-              initialGestureCoordinate: null,
-              activeDotCoordinate: null,
-              showError: true
-            },
-            () => {
-              this._resetTimeout = setTimeout(() => {
-                this.setState({
-                  showHint: true,
-                  showError: false,
-                  pattern: [],
-                  animateIndexes: []
-                });
-              }, 2000);
-            }
-          );
-        } else {
-          Alert.alert(
-            '',
-            'Congratulations unlock success',
-            [{text: 'OK', onPress: this.props.onPatternMatch}],
-            {cancelable: false}
-          );
+        if (pattern.length) {
+          if (this._isPatternMatched(pattern)) {
+            Alert.alert(
+              '',
+              'Congratulations unlock success',
+              [{text: 'OK', onPress: this.props.onPatternMatch}],
+              {cancelable: false}
+            );
+          } else {
+            this.setState(
+              {
+                initialGestureCoordinate: null,
+                activeDotCoordinate: null,
+                showError: true
+              },
+              () => {
+                this._resetTimeout = setTimeout(() => {
+                  this.setState({
+                    showHint: true,
+                    showError: false,
+                    pattern: [],
+                    animateIndexes: []
+                  });
+                }, 2000);
+              }
+            );
+          }
         }
       }
     });
@@ -345,6 +345,18 @@ export default class PatternLockScreen extends React.Component<Props, State> {
     }
     return matched;
   }
+
+  _snapDot(animatedValue: Animated.Value) {
+    Animated.timing(animatedValue, {
+      toValue: SNAP_DOT_RADIUS,
+      duration: SNAP_DURATION
+    }).start(() => {
+      Animated.timing(animatedValue, {
+        toValue: DEFAULT_DOT_RADIUS,
+        duration: SNAP_DURATION
+      }).start();
+    });
+  }
 }
 
 const styles = StyleSheet.create({
@@ -357,9 +369,11 @@ const styles = StyleSheet.create({
   hintContainer: {
     alignItems: 'center',
     paddingBottom: 10,
-    height: 20
+    height: 20,
+    flexWrap: 'wrap'
   },
   hintText: {
-    color: 'white'
+    color: 'white',
+    textAlign: 'center'
   }
 });
