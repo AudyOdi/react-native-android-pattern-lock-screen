@@ -14,6 +14,7 @@ import {
   BackHandler
 } from 'react-native';
 import {Icon} from 'react-native-elements';
+import * as Animatable from 'react-native-animatable';
 
 import PatternLockScreen from './PatternLockScreen';
 import backgroundImage from './assets/default_background.jpg';
@@ -163,6 +164,19 @@ export default class App extends React.Component<void, State> {
               style={styles.date}
             >{`${dayName}, ${monthName} ${date}`}</Text>
           </Animated.View>
+          <View style={{alignItems: 'center', paddingBottom: 20}}>
+            <Animatable.Text
+              delay={3000}
+              animation="slideInUp"
+              iterationCount="infinite"
+              direction="alternate"
+              easing="ease-out"
+              duration={1500}
+              style={[styles.hint, {opacity: timeOpacity}]}
+            >
+              Swipe up to unlock
+            </Animatable.Text>
+          </View>
         </Animated.Image>
         {showPatternLock ? (
           <Animated.View
@@ -268,5 +282,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingLeft: 40,
     paddingBottom: 10
+  },
+  hint: {
+    backgroundColor: 'transparent',
+    color: '#f2f2f2',
+    fontSize: 16
   }
 });
