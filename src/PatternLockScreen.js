@@ -198,11 +198,19 @@ export default class PatternLockScreen extends React.Component<Props, State> {
         let {pattern} = this.state;
         if (pattern.length) {
           if (this._isPatternMatched(pattern)) {
-            Alert.alert(
-              '',
-              'Congratulations unlock success',
-              [{text: 'OK', onPress: this.props.onPatternMatch}],
-              {cancelable: false}
+            this.setState(
+              {
+                initialGestureCoordinate: null,
+                activeDotCoordinate: null
+              },
+              () => {
+                Alert.alert(
+                  '',
+                  'Congratulations unlock success',
+                  [{text: 'OK', onPress: this.props.onPatternMatch}],
+                  {cancelable: false}
+                );
+              }
             );
           } else {
             this.setState(
