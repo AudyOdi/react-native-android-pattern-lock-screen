@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "React Native Android Pattern Screen Lock",
+    "slug": "rnAndroidPatternScreenLock",
+    "sdkVersion": "22.0.0",
+    "orientation": "portrait"
+  }
+}
