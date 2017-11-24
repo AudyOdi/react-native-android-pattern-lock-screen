@@ -35,7 +35,6 @@ type State = {
   activeDotCoordinate: ?Coordinate,
   initialGestureCoordinate: ?Coordinate,
   pattern: Array<Coordinate>,
-  animateIndexes: Array<number>,
   showError: boolean,
   showHint: boolean
 };
@@ -62,7 +61,6 @@ export default class PatternLockScreen extends React.Component<Props, State> {
       initialGestureCoordinate: null,
       activeDotCoordinate: null,
       pattern: [],
-      animateIndexes: [],
       showError: false,
       showHint: false
     };
@@ -175,8 +173,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
           this.setState(
             {
               pattern,
-              activeDotCoordinate: this._dots[matchedDotIndex],
-              animateIndexes
+              activeDotCoordinate: this._dots[matchedDotIndex]
             },
             () => {
               if (animateIndexes.length) {
@@ -224,8 +221,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
                   this.setState({
                     showHint: true,
                     showError: false,
-                    pattern: [],
-                    animateIndexes: []
+                    pattern: []
                   });
                 }, 2000);
               }
