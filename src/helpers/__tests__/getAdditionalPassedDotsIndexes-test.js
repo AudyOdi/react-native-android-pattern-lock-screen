@@ -13,7 +13,7 @@ const dots = [
 ];
 
 describe('getAdditionalPassedDotsIndexes', () => {
-  it('should return empty array if active gesture coordinate is passing any dots', () => {
+  it('should return empty array if active gesture coordinate is not passing any extra dots', () => {
     let pattern = [{x: 0, y: 0}];
     let additionalDotsIndexes = getAdditionalPassedDotsIndexes(
       pattern[0],
