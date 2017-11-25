@@ -157,18 +157,21 @@ export default class PatternLockScreen extends React.Component<Props, State> {
             );
           }
 
-          let filteredAdditionalDots = additionalPassedDotIndexes.filter(
+          let filteredAdditionalDotIndexes = additionalPassedDotIndexes.filter(
             index => !this._hasDotGetPassed(this._mappedDotsIndex[index])
           );
 
-          filteredAdditionalDots.forEach(index => {
+          filteredAdditionalDotIndexes.forEach(index => {
             let mappedDot = this._mappedDotsIndex[index];
             pattern.push({x: mappedDot.x, y: mappedDot.y});
           });
 
           pattern.push(newPattern);
 
-          let animateIndexes = [...filteredAdditionalDots, matchedDotIndex];
+          let animateIndexes = [
+            ...filteredAdditionalDotIndexes,
+            matchedDotIndex
+          ];
 
           this.setState(
             {
