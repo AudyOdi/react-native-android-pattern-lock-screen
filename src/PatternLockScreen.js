@@ -115,7 +115,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
         }
       },
       onPanResponderMove: (e, gestureState) => {
-        let {dx, dy, x0, y0} = gestureState;
+        let {dx, dy} = gestureState;
         let {
           initialGestureCoordinate,
           activeDotCoordinate,
