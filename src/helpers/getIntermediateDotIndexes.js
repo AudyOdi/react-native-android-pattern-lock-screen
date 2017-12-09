@@ -65,20 +65,5 @@ export default function getIntermediateDotIndexes(
     }
   }
 
-  // check diagonal from bottom left to top right
-  // if (
-  //   focusCoordinate.x === dimension - focusCoordinate.y - 1 &&
-  //   anchorCoordinate.x === dimension - anchorCoordinate.y - 1
-  // ) {
-  //   for (
-  //     let row = Math.min(focusCoordinate.y, anchorCoordinate.y) + 1;
-  //     row < Math.max(focusCoordinate.y, anchorCoordinate.y);
-  //     row++
-  //   ) {
-  //     let col = dimension - row - 1;
-  //     let index = row * dimension + col;
-  //     intermediateDotIndexes.push(index);
-  //   }
-  // }
   return intermediateDotIndexes;
 }
