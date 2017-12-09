@@ -13,8 +13,8 @@ import {Svg} from 'expo';
 
 import {
   populateDotsCoordinate,
-  getPassedDotIndex,
-  getAdditionalPassedDotsIndexes
+  getDotIndex,
+  getIntermediateDotIndexes
 } from './helpers';
 
 type Coordinate = {
@@ -46,9 +46,9 @@ const SNAP_DURATION = 100;
 
 export default class PatternLockScreen extends React.Component<Props, State> {
   _panResponder: {panHandlers: Object};
-  _activeLineComponent: ?Object;
+  _activeLine: ?Object;
   _dots: Array<Coordinate>;
-  _dotsComponent: Array<?Object>;
+  _dotNodes: Array<?Object>;
   _mappedDotsIndex: Array<Coordinate>;
 
   _snapAnimatedValues: Array<Animated.Value>;
@@ -67,23 +67,22 @@ export default class PatternLockScreen extends React.Component<Props, State> {
 
     let {containerDimension, containerWidth, containerHeight} = this.props;
 
-    let {actualDotsCoordinate, mappedDotsIndex} = populateDotsCoordinate(
+    let {screenCoordinates, mappedIndex} = populateDotsCoordinate(
       containerDimension,
       containerWidth,
       containerHeight
     );
-    this._dots = actualDotsCoordinate;
-    this._mappedDotsIndex = mappedDotsIndex;
-    this._dotsComponent = [];
+    this._dots = screenCoordinates;
+    this._mappedDotsIndex = mappedIndex;
+    this._dotNodes = [];
 
-    this._snapAnimatedValues = this._dots.map(
-      () => new Animated.Value(DEFAULT_DOT_RADIUS)
-    );
-    this._snapAnimatedValues.forEach((animatedValue, index) => {
+    this._snapAnimatedValues = this._dots.map((dot, index) => {
+      let animatedValue = new Animated.Value(DEFAULT_DOT_RADIUS);
       animatedValue.addListener(({value}) => {
-        let dot = this._dotsComponent[index];
-        dot && dot.setNativeProps({r: value.toString()});
+        let dotNode = this._dotNodes[index];
+        dotNode && dotNode.setNativeProps({r: value.toString()});
       });
+      return animatedValue;
     });
 
     this._panResponder = PanResponder.create({
@@ -93,7 +92,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
       onPanResponderGrant: e => {
         let {locationX, locationY} = e.nativeEvent;
 
-        let activeDotIndex = getPassedDotIndex(
+        let activeDotIndex = getDotIndex(
           {x: locationX, y: locationY},
           this._dots
         );
@@ -129,7 +128,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
         let endGestureX = initialGestureCoordinate.x + dx;
         let endGestureY = initialGestureCoordinate.y + dy;
 
-        let matchedDotIndex = getPassedDotIndex(
+        let matchedDotIndex = getDotIndex(
           {x: endGestureX, y: endGestureY},
           this._dots
         );
@@ -140,28 +139,28 @@ export default class PatternLockScreen extends React.Component<Props, State> {
         if (
           matchedDotIndex != null &&
           matchedDot &&
-          !this._hasDotGetPassed(matchedDot)
+          !this._isAlreadyInPattern(matchedDot)
         ) {
           let newPattern = {
             x: matchedDot.x,
             y: matchedDot.y
           };
 
-          let additionalPassedDotIndexes = [];
+          let intermediateDotIndexes = [];
 
           if (pattern.length > 0) {
-            additionalPassedDotIndexes = getAdditionalPassedDotsIndexes(
+            intermediateDotIndexes = getIntermediateDotIndexes(
               pattern[pattern.length - 1],
               newPattern,
-              this._mappedDotsIndex
+              this.props.containerDimension
             );
           }
 
-          let filteredAdditionalDotIndexes = additionalPassedDotIndexes.filter(
-            index => !this._hasDotGetPassed(this._mappedDotsIndex[index])
+          let filteredIntermediateDotIndexes = intermediateDotIndexes.filter(
+            index => !this._isAlreadyInPattern(this._mappedDotsIndex[index])
           );
 
-          filteredAdditionalDotIndexes.forEach(index => {
+          filteredIntermediateDotIndexes.forEach(index => {
             let mappedDot = this._mappedDotsIndex[index];
             pattern.push({x: mappedDot.x, y: mappedDot.y});
           });
@@ -169,7 +168,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
           pattern.push(newPattern);
 
           let animateIndexes = [
-            ...filteredAdditionalDotIndexes,
+            ...filteredIntermediateDotIndexes,
             matchedDotIndex
           ];
 
@@ -187,8 +186,8 @@ export default class PatternLockScreen extends React.Component<Props, State> {
             }
           );
         } else {
-          this._activeLineComponent &&
-            this._activeLineComponent.setNativeProps({
+          this._activeLine &&
+            this._activeLine.setNativeProps({
               x2: endGestureX.toString(),
               y2: endGestureY.toString()
             });
@@ -268,7 +267,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
               );
               return (
                 <Circle
-                  ref={circle => (this._dotsComponent[i] = circle)}
+                  ref={circle => (this._dotNodes[i] = circle)}
                   key={i}
                   cx={dot.x}
                   cy={dot.y}
@@ -312,7 +311,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
             })}
             {activeDotCoordinate ? (
               <Line
-                ref={component => (this._activeLineComponent = component)}
+                ref={component => (this._activeLine = component)}
                 x1={activeDotCoordinate.x}
                 y1={activeDotCoordinate.y}
                 x2={activeDotCoordinate.x}
@@ -327,7 +326,7 @@ export default class PatternLockScreen extends React.Component<Props, State> {
     );
   }
 
-  _hasDotGetPassed({x, y}: Coordinate) {
+  _isAlreadyInPattern({x, y}: Coordinate) {
     let {pattern} = this.state;
     return pattern.find(dot => {
       return dot.x === x && dot.y === y;
@@ -354,15 +353,16 @@ export default class PatternLockScreen extends React.Component<Props, State> {
   }
 
   _snapDot(animatedValue: Animated.Value) {
-    Animated.timing(animatedValue, {
-      toValue: SNAP_DOT_RADIUS,
-      duration: SNAP_DURATION
-    }).start(() => {
+    Animated.sequence([
+      Animated.timing(animatedValue, {
+        toValue: SNAP_DOT_RADIUS,
+        duration: SNAP_DURATION
+      }),
       Animated.timing(animatedValue, {
         toValue: DEFAULT_DOT_RADIUS,
         duration: SNAP_DURATION
-      }).start();
-    });
+      })
+    ]).start();
   }
 }
 

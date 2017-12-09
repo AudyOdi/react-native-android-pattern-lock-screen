@@ -4,7 +4,7 @@ type Coordinate = {x: number, y: number};
 
 const DEFAULT_HIT_SLOP = 25;
 
-export default function getPassedDotIndex(
+export default function getDotIndex(
   gestureCoordinate: Coordinate,
   dots: Array<Coordinate>,
   hitSlop?: number = DEFAULT_HIT_SLOP

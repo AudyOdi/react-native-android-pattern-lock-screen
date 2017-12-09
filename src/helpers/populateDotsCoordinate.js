@@ -5,24 +5,24 @@ export default function populateDotsCoordinate(
   containerWidth: number,
   containerHeight: number
 ) {
-  let mappedDotsIndex = [];
-  let actualDotsCoordinate = [];
+  let mappedIndex = [];
+  let screenCoordinates = [];
 
   for (let rowIndex = 0; rowIndex < dotsDimension; rowIndex++) {
     for (let columnIndex = 0; columnIndex < dotsDimension; columnIndex++) {
       let offsetX = containerWidth / dotsDimension * columnIndex;
       let offsetY = containerHeight / dotsDimension * rowIndex;
 
-      actualDotsCoordinate.push({
+      screenCoordinates.push({
         x: offsetX + containerWidth / dotsDimension / 2,
         y: offsetY + containerWidth / dotsDimension / 2
       });
-      mappedDotsIndex.push({x: columnIndex, y: rowIndex});
+      mappedIndex.push({x: columnIndex, y: rowIndex});
     }
   }
 
   return {
-    mappedDotsIndex,
-    actualDotsCoordinate
+    mappedIndex,
+    screenCoordinates
   };
 }

@@ -33,6 +33,7 @@ const CORRECT_UNLOCK_PATTERN = [
   {x: 1, y: 2},
   {x: 2, y: 2}
 ];
+const HINT_DELAY = 3000;
 
 type State = {
   showPatternLock: boolean,
@@ -166,7 +167,7 @@ export default class App extends React.Component<void, State> {
           </Animated.View>
           <View style={{alignItems: 'center', paddingBottom: 20}}>
             <Animatable.Text
-              delay={3000}
+              delay={HINT_DELAY}
               animation="slideInUp"
               iterationCount="infinite"
               direction="alternate"
